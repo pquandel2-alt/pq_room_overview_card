@@ -70,10 +70,12 @@ sections:
     entities:
       - media_player.wohnzimmer_tv
       - switch.spielekonsole
-  - title: Fenster & Türen
+  - title: Geräte
     entities:
-      - binary_sensor.fenster_links
-      - binary_sensor.balkontuer
+      - switch.spielekonsole
+door_window_entities:
+  - binary_sensor.fenster_links
+  - binary_sensor.balkontuer
 ```
 
 #### Vollständig
@@ -116,6 +118,7 @@ sections:
 | `icon` | string | `mdi:home` | Icon der Karte |
 | `temperature_entity` | string | – | Temperatursensor für Badge |
 | `humidity_entity` | string | – | Luftfeuchte-Sensor für Badge |
+| `door_window_entities` | liste | `[]` | Tür-/Fensterkontakte als Icon-Badges (rot = offen, grau = geschlossen) |
 | `sections` | liste | `[]` | Abschnitte im Popup (siehe unten) |
 | `border_radius` | number | `16` | Eckenradius in px |
 
@@ -146,7 +149,7 @@ Die Badges auf der Hauptkarte werden automatisch berechnet:
 | 🌡 Temperatur | `temperature_entity` |
 | 💧 Luftfeuchte | `humidity_entity` |
 | 💡 Lichter | Zählt alle `light.*`-Entitäten aus den Abschnitten |
-| 🚪 Offen | Zählt `binary_sensor.*` mit `device_class: door/window/opening` im Zustand `on` |
+| 🚪/🪟 Tür/Fenster | `door_window_entities` – Icon rot wenn offen, grau wenn geschlossen |
 
 ## 🎛️ Erkannte Entitätstypen im Popup
 

@@ -1,5 +1,5 @@
 // =====================================================================
-//  Room Overview Card v1.0.0
+//  Room Overview Card v1.0.2
 // =====================================================================
 
 const ROC_STATE_MAP = {
@@ -334,25 +334,20 @@ class RoomOverviewCard extends HTMLElement {
 
   _getDoorWindowSensors() {
     const hass = this._hass;
-    const SENSOR_DC = ['door','window','opening','garage_door','gate'];
-    return this._allEntities()
-      .filter(e => {
-        const id = rocEntityId(e);
-        if (!id.startsWith('binary_sensor.')) return false;
-        const st = hass?.states[id];
-        return st && SENSOR_DC.includes(st.attributes.device_class);
-      })
-      .map(e => {
-        const id = rocEntityId(e);
-        const st = hass.states[id];
+    return (this._config.door_window_entities || [])
+      .filter(Boolean)
+      .map(entityId => {
+        const st = hass?.states[entityId];
+        if (!st) return null;
         const isOpen = st.state === 'on';
-        const dc = st.attributes.device_class;
-        const icon = dc === 'door'         ? (isOpen ? 'mdi:door-open'    : 'mdi:door-closed')
-                   : dc === 'garage_door'  ? (isOpen ? 'mdi:garage-open'  : 'mdi:garage')
-                   : dc === 'gate'         ? (isOpen ? 'mdi:gate-open'    : 'mdi:gate')
-                   :                        (isOpen ? 'mdi:window-open'   : 'mdi:window-closed');
-        return { id, name: rocEntityLabel(e, hass), isOpen, icon };
-      });
+        const dc = st.attributes.device_class || 'window';
+        const icon = dc === 'door'        ? (isOpen ? 'mdi:door-open'   : 'mdi:door-closed')
+                   : dc === 'garage_door' ? (isOpen ? 'mdi:garage-open' : 'mdi:garage')
+                   : dc === 'gate'        ? (isOpen ? 'mdi:gate-open'   : 'mdi:gate')
+                   :                       (isOpen ? 'mdi:window-open'  : 'mdi:window-closed');
+        return { entityId, isOpen, icon };
+      })
+      .filter(Boolean);
   }
 
   _render() {
@@ -368,7 +363,7 @@ class RoomOverviewCard extends HTMLElement {
     const lights  = this._countLights();
     const sensors = this._getDoorWindowSensors();
 
-    const renderKey = `${name}|${icon}|${temp}|${hum}|${lights.on}|${lights.total}|${sensors.map(s=>s.id+s.isOpen).join(',')}|${JSON.stringify(c)}`;
+    const renderKey = `${name}|${icon}|${temp}|${hum}|${lights.on}|${lights.total}|${sensors.map(s=>s.entityId+s.isOpen).join(',')}|${JSON.stringify(c)}`;
     if (renderKey === this._lastRenderKey) return;
     this._lastRenderKey = renderKey;
 
@@ -386,9 +381,8 @@ class RoomOverviewCard extends HTMLElement {
       </div>`;
     }
     sensors.forEach(s => {
-      badges += `<div class="badge ${s.isOpen ? 'badge-danger' : 'badge-closed'}">
+      badges += `<div class="badge ${s.isOpen ? 'badge-danger' : 'badge-closed'}" style="padding:4px 7px;">
         <ha-icon icon="${s.icon}"></ha-icon>
-        <span>${s.name}</span>
       </div>`;
     });
 
@@ -1065,6 +1059,60 @@ class RoomOverviewCardEditor extends HTMLElement {
     container.appendChild(addSectionBtn);
   }
 
+  // ── Door/Window entity list ───────────────────────────────────────
+  _renderDoorWindowEntities(container) {
+    container.innerHTML = '';
+    const entities = this._config.door_window_entities || [];
+
+    if (entities.length === 0) {
+      const hint = document.createElement('div');
+      hint.style.cssText = 'font-size:11px;color:var(--secondary-text-color,#999);padding:4px 0 6px;';
+      hint.textContent = 'Noch keine Sensoren hinzugefügt.';
+      container.appendChild(hint);
+    }
+
+    entities.forEach((entityId, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:5px;margin-bottom:6px;';
+
+      const pickerDiv = document.createElement('div');
+      pickerDiv.style.cssText = 'flex:1;';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '×';
+      removeBtn.style.cssText = 'flex-shrink:0;width:32px;height:32px;background:rgba(200,60,60,0.1);border:1px solid rgba(200,60,60,0.3);border-radius:6px;color:rgb(180,40,40);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;padding:0;';
+      removeBtn.addEventListener('click', () => {
+        const arr = [...(this._config.door_window_entities || [])];
+        arr.splice(idx, 1);
+        this._config = { ...this._config, door_window_entities: arr };
+        this._emit();
+        this._renderDoorWindowEntities(container);
+      });
+
+      row.appendChild(pickerDiv);
+      row.appendChild(removeBtn);
+      container.appendChild(row);
+
+      this._buildEntityPicker(pickerDiv, entityId, newId => {
+        const arr = [...(this._config.door_window_entities || [])];
+        arr[idx] = newId;
+        this._config = { ...this._config, door_window_entities: arr };
+        this._emit();
+      });
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.textContent = '+ Sensor hinzufügen';
+    addBtn.style.cssText = 'width:100%;margin-top:2px;padding:6px;border-radius:6px;border:1px dashed var(--divider-color,#ccc);background:transparent;color:var(--secondary-text-color,#727272);font-size:12px;cursor:pointer;';
+    addBtn.addEventListener('click', () => {
+      const arr = [...(this._config.door_window_entities || []), ''];
+      this._config = { ...this._config, door_window_entities: arr };
+      this._emit();
+      this._renderDoorWindowEntities(container);
+    });
+    container.appendChild(addBtn);
+  }
+
   _mkMoveBtn(label, disabled, onClick) {
     const btn = document.createElement('button');
     btn.textContent = label;
@@ -1117,7 +1165,7 @@ class RoomOverviewCardEditor extends HTMLElement {
         </div>
 
         <div class="section">Sensor-Badges</div>
-        <div class="hint" style="margin-bottom:2px;">Werden oben auf der Karte als Badges angezeigt. Lichter und offene Sensoren werden automatisch aus den Abschnitten gezählt.</div>
+        <div class="hint" style="margin-bottom:2px;">Werden oben auf der Karte als Badges angezeigt. Lichter werden automatisch aus den Abschnitten gezählt.</div>
         <div class="field">
           <label>Temperatur-Sensor</label>
           <div id="tempContainer"></div>
@@ -1126,6 +1174,10 @@ class RoomOverviewCardEditor extends HTMLElement {
           <label>Luftfeuchte-Sensor</label>
           <div id="humContainer"></div>
         </div>
+
+        <div class="section">Tür-/Fensterkontakte</div>
+        <div class="hint" style="margin-bottom:6px;">Binärsensoren die als Icon-Badge auf der Karte erscheinen. Rot = offen, grau = geschlossen.</div>
+        <div id="dwContainer"></div>
 
         <div class="section">Abschnitte im Popup</div>
         <div class="hint" style="margin-bottom:6px;">Erstelle Abschnitte mit Überschriften. Entitäten lassen sich per ▲▼ sortieren.</div>
@@ -1144,6 +1196,7 @@ class RoomOverviewCardEditor extends HTMLElement {
     this._buildEntityPicker(root.getElementById('tempContainer'), c.temperature_entity || '', id => this._update('temperature_entity', id));
     this._buildEntityPicker(root.getElementById('humContainer'),  c.humidity_entity  || '', id => this._update('humidity_entity',  id));
 
+    this._renderDoorWindowEntities(root.getElementById('dwContainer'));
     this._renderSections(root.getElementById('sectionsContainer'));
   }
 }
