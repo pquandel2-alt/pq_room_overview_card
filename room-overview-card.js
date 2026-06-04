@@ -1,5 +1,5 @@
 // =====================================================================
-//  Room Overview Card v1.0.6
+//  Room Overview Card v1.0.7
 // =====================================================================
 
 const ROC_STATE_MAP = {
@@ -822,75 +822,15 @@ class RoomOverviewCardEditor extends HTMLElement {
   // ── Entity Picker ──────────────────────────────────────────────────
   _buildEntityPicker(container, currentValue, onChange) {
     container.innerHTML = '';
-    const hass = this._hass;
-    const entities = hass ? Object.keys(hass.states).sort() : [];
-
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position:relative;';
-
-    const inputRow = document.createElement('div');
-    inputRow.style.cssText = 'display:flex;align-items:center;gap:8px;border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;background:var(--card-background-color,#fff);padding:5px 10px;';
-
-    const iconEl = document.createElement('ha-icon');
-    iconEl.icon = rocEntityIcon(hass, currentValue);
-    iconEl.style.cssText = '--mdc-icon-size:18px;color:var(--secondary-text-color,#727272);flex-shrink:0;';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.placeholder = 'Entität suchen…';
-    input.style.cssText = 'flex:1;border:none;outline:none;background:transparent;color:var(--primary-text-color,#212121);font-size:13px;';
-    if (currentValue && hass?.states[currentValue]) {
-      input.value = hass.states[currentValue].attributes.friendly_name || currentValue;
-    } else {
-      input.value = currentValue || '';
-    }
-
-    inputRow.appendChild(iconEl);
-    inputRow.appendChild(input);
-
-    const dropdown = document.createElement('div');
-    dropdown.style.cssText = 'position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);display:none;margin-top:2px;';
-
-    const showDropdown = (filter = '') => {
-      dropdown.innerHTML = '';
-      const lower = filter.toLowerCase().trim();
-      const filtered = entities.filter(e => {
-        if (!lower) return true;
-        const fn = (hass.states[e]?.attributes.friendly_name || '').toLowerCase();
-        return fn.includes(lower) || e.toLowerCase().includes(lower);
-      }).slice(0, 150);
-      filtered.forEach(e => {
-        const fn = hass.states[e]?.attributes.friendly_name || '';
-        const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;border-bottom:1px solid var(--divider-color,#f0f0f0);';
-        const ic = document.createElement('ha-icon');
-        ic.icon = rocEntityIcon(hass, e);
-        ic.style.cssText = '--mdc-icon-size:16px;color:var(--secondary-text-color,#727272);flex-shrink:0;';
-        const textDiv = document.createElement('div');
-        textDiv.innerHTML = `<div style="font-size:12px;font-weight:500;">${fn||e}</div><div style="font-size:10px;color:var(--secondary-text-color,#727272);">${e}</div>`;
-        item.appendChild(ic);
-        item.appendChild(textDiv);
-        item.addEventListener('mousedown', ev => {
-          ev.preventDefault();
-          input.value = fn || e;
-          iconEl.icon = rocEntityIcon(hass, e);
-          dropdown.style.display = 'none';
-          onChange(e);
-        });
-        item.addEventListener('mouseover', () => item.style.background = 'var(--secondary-background-color,#f5f5f5)');
-        item.addEventListener('mouseout', () => item.style.background = '');
-        dropdown.appendChild(item);
-      });
-      dropdown.style.display = filtered.length ? 'block' : 'none';
-    };
-
-    input.addEventListener('focus', () => showDropdown(input.value));
-    input.addEventListener('input', () => showDropdown(input.value));
-    input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
-
-    wrapper.appendChild(inputRow);
-    wrapper.appendChild(dropdown);
-    container.appendChild(wrapper);
+    const picker = document.createElement('ha-entity-picker');
+    picker.hass = this._hass;
+    picker.value = currentValue || '';
+    picker.setAttribute('allow-custom-entity', '');
+    picker.style.cssText = 'display:block;width:100%;';
+    picker.addEventListener('value-changed', e => {
+      if (e.detail.value !== undefined) onChange(e.detail.value);
+    });
+    container.appendChild(picker);
   }
 
   // ── Icon Picker ────────────────────────────────────────────────────
