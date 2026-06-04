@@ -344,7 +344,7 @@ class RoomOverviewCard extends HTMLElement {
         const icon = dc === 'door'        ? (isOpen ? 'mdi:door-open'   : 'mdi:door-closed')
                    : dc === 'garage_door' ? (isOpen ? 'mdi:garage-open' : 'mdi:garage')
                    : dc === 'gate'        ? (isOpen ? 'mdi:gate-open'   : 'mdi:gate')
-                   :                       (isOpen ? 'mdi:window-open'  : 'mdi:window-closed');
+                   :                       (isOpen ? 'mdi:window-open-variant'  : 'mdi:window-closed-variant');
         return { entityId, isOpen, icon };
       })
       .filter(Boolean);
