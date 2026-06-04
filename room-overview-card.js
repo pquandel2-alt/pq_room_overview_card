@@ -332,15 +332,27 @@ class RoomOverviewCard extends HTMLElement {
     return { on, total: lights.length };
   }
 
-  _countOpenSensors() {
+  _getDoorWindowSensors() {
     const hass = this._hass;
-    const OPEN_DC = ['door','window','opening','garage_door'];
-    return this._allEntities().filter(e => {
-      const id = rocEntityId(e);
-      if (!id.startsWith('binary_sensor.')) return false;
-      const st = hass?.states[id];
-      return st && OPEN_DC.includes(st.attributes.device_class) && st.state === 'on';
-    }).length;
+    const SENSOR_DC = ['door','window','opening','garage_door','gate'];
+    return this._allEntities()
+      .filter(e => {
+        const id = rocEntityId(e);
+        if (!id.startsWith('binary_sensor.')) return false;
+        const st = hass?.states[id];
+        return st && SENSOR_DC.includes(st.attributes.device_class);
+      })
+      .map(e => {
+        const id = rocEntityId(e);
+        const st = hass.states[id];
+        const isOpen = st.state === 'on';
+        const dc = st.attributes.device_class;
+        const icon = dc === 'door'         ? (isOpen ? 'mdi:door-open'    : 'mdi:door-closed')
+                   : dc === 'garage_door'  ? (isOpen ? 'mdi:garage-open'  : 'mdi:garage')
+                   : dc === 'gate'         ? (isOpen ? 'mdi:gate-open'    : 'mdi:gate')
+                   :                        (isOpen ? 'mdi:window-open'   : 'mdi:window-closed');
+        return { id, name: rocEntityLabel(e, hass), isOpen, icon };
+      });
   }
 
   _render() {
@@ -353,10 +365,10 @@ class RoomOverviewCard extends HTMLElement {
     const humSt  = c.humidity_entity  ? this._hass.states[c.humidity_entity]  : null;
     const temp = tempSt ? parseFloat(tempSt.state) : null;
     const hum  = humSt  ? parseFloat(humSt.state)  : null;
-    const lights = this._countLights();
-    const open   = this._countOpenSensors();
+    const lights  = this._countLights();
+    const sensors = this._getDoorWindowSensors();
 
-    const renderKey = `${name}|${icon}|${temp}|${hum}|${lights.on}|${lights.total}|${open}|${JSON.stringify(c)}`;
+    const renderKey = `${name}|${icon}|${temp}|${hum}|${lights.on}|${lights.total}|${sensors.map(s=>s.id+s.isOpen).join(',')}|${JSON.stringify(c)}`;
     if (renderKey === this._lastRenderKey) return;
     this._lastRenderKey = renderKey;
 
@@ -373,9 +385,12 @@ class RoomOverviewCard extends HTMLElement {
         <span>${lights.on}<span style="opacity:.5">/${lights.total}</span></span>
       </div>`;
     }
-    if (open > 0) {
-      badges += `<div class="badge badge-warn"><ha-icon icon="mdi:door-open"></ha-icon><span>${open} offen</span></div>`;
-    }
+    sensors.forEach(s => {
+      badges += `<div class="badge ${s.isOpen ? 'badge-danger' : 'badge-closed'}">
+        <ha-icon icon="${s.icon}"></ha-icon>
+        <span>${s.name}</span>
+      </div>`;
+    });
 
     const hasSections = (c.sections || []).some(s => (s.entities || []).length > 0);
 
@@ -436,10 +451,15 @@ class RoomOverviewCard extends HTMLElement {
           border-color: rgba(255,213,79,0.38);
           color: #ffd54f;
         }
-        .badge-warn {
-          background: rgba(255,152,50,0.14);
-          border-color: rgba(255,152,50,0.38);
-          color: #ff9632;
+        .badge-danger {
+          background: rgba(244,67,54,0.16);
+          border-color: rgba(244,67,54,0.45);
+          color: #f44336;
+        }
+        .badge-closed {
+          background: rgba(255,255,255,0.04);
+          border-color: rgba(255,255,255,0.07);
+          color: rgba(255,255,255,0.35);
         }
         .no-badges {
           font-size: 12px;
@@ -850,6 +870,38 @@ class RoomOverviewCardEditor extends HTMLElement {
     container.appendChild(wrapper);
   }
 
+  // ── Icon Picker ────────────────────────────────────────────────────
+  _buildIconPicker(container, currentValue, onChange) {
+    container.innerHTML = '';
+    const isReal = customElements.get('ha-icon-picker') !== undefined;
+    if (isReal) {
+      const ip = document.createElement('ha-icon-picker');
+      ip.value = currentValue;
+      ip.addEventListener('value-changed', e => onChange(e.detail.value));
+      container.appendChild(ip);
+    } else {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+      const preview = document.createElement('ha-icon');
+      preview.icon = currentValue || 'mdi:help-circle';
+      preview.style.cssText = '--mdc-icon-size:26px;color:var(--secondary-text-color,#727272);flex-shrink:0;';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = currentValue || '';
+      inp.placeholder = 'mdi:sofa';
+      inp.style.cssText = 'flex:1;padding:9px 11px;border-radius:8px;border:1px solid var(--divider-color,#e0e0e0);background:var(--card-background-color,#fff);color:var(--primary-text-color,#212121);font-size:14px;outline:none;';
+      inp.addEventListener('input', e => { preview.icon = e.target.value || 'mdi:help-circle'; });
+      inp.addEventListener('change', e => onChange(e.target.value));
+      const hint = document.createElement('div');
+      hint.style.cssText = 'font-size:11px;color:var(--secondary-text-color,#727272);margin-top:4px;';
+      hint.textContent = 'Alle Icons: materialdesignicons.com';
+      row.appendChild(preview);
+      row.appendChild(inp);
+      container.appendChild(row);
+      container.appendChild(hint);
+    }
+  }
+
   // ── Section entity list ───────────────────────────────────────────
   _renderSectionEntities(container, sIdx) {
     container.innerHTML = '';
@@ -1056,7 +1108,7 @@ class RoomOverviewCardEditor extends HTMLElement {
           </div>
           <div class="field">
             <label>Icon</label>
-            <input type="text" id="icon" value="${c.icon||'mdi:home'}" placeholder="mdi:sofa" />
+            <div id="iconContainer"></div>
           </div>
         </div>
         <div class="field">
@@ -1086,8 +1138,8 @@ class RoomOverviewCardEditor extends HTMLElement {
       if (el) el.addEventListener('change', e => this._update(key, fn(e.target.value)));
     };
     on('name', 'name');
-    on('icon', 'icon');
     on('border_radius', 'border_radius', v => parseInt(v));
+    this._buildIconPicker(root.getElementById('iconContainer'), c.icon || 'mdi:home', v => this._update('icon', v));
 
     this._buildEntityPicker(root.getElementById('tempContainer'), c.temperature_entity || '', id => this._update('temperature_entity', id));
     this._buildEntityPicker(root.getElementById('humContainer'),  c.humidity_entity  || '', id => this._update('humidity_entity',  id));
