@@ -1,5 +1,5 @@
 // =====================================================================
-//  Room Overview Card v1.0.2
+//  Room Overview Card v1.0.4
 // =====================================================================
 
 const ROC_STATE_MAP = {
@@ -380,11 +380,13 @@ class RoomOverviewCard extends HTMLElement {
         <span>${lights.on}<span style="opacity:.5">/${lights.total}</span></span>
       </div>`;
     }
-    sensors.forEach(s => {
-      badges += `<div class="badge ${s.isOpen ? 'badge-danger' : 'badge-closed'}" style="padding:4px 7px;">
-        <ha-icon icon="${s.icon}"></ha-icon>
+    if (sensors.length > 0) {
+      const anyOpen = sensors.some(s => s.isOpen);
+      const dwIcon = anyOpen ? 'mdi:window-open-variant' : 'mdi:window-closed-variant';
+      badges += `<div class="badge ${anyOpen ? 'badge-danger' : 'badge-closed'}" style="padding:4px 7px;">
+        <ha-icon icon="${dwIcon}"></ha-icon>
       </div>`;
-    });
+    }
 
     const hasSections = (c.sections || []).some(s => (s.entities || []).length > 0);
 
