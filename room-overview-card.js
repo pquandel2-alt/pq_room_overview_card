@@ -1,5 +1,5 @@
 // =====================================================================
-//  Room Overview Card v1.0.4
+//  Room Overview Card v1.0.6
 // =====================================================================
 
 const ROC_STATE_MAP = {
@@ -274,6 +274,19 @@ function rocBuildEntityRow(item, hass) {
     return `<div class="popup-row popup-col">
       <div class="popup-row-head">${IC(icon)}<span class="popup-label">${label}</span></div>
       ${SLIDER(entityId, min, max, step, val, unit, 'number')}
+    </div>`;
+  }
+
+  // Binary Sensor (read-only)
+  if (domain === 'binary_sensor') {
+    const dc = st.attributes.device_class || '';
+    const openStates  = { door:'Offen', window:'Offen', garage_door:'Offen', gate:'Offen', opening:'Offen', contact:'Offen', motion:'Erkannt', smoke:'Erkannt', gas:'Erkannt', moisture:'Nass', presence:'Anwesend', occupancy:'Belegt', plug:'Verbunden', lock:'Offen' };
+    const closeStates = { door:'Zu',    window:'Zu',    garage_door:'Zu',    gate:'Zu',    opening:'Zu',    contact:'Zu',    motion:'Frei',    smoke:'Frei',    gas:'Frei',    moisture:'Trocken', presence:'Abwesend', occupancy:'Frei',    plug:'Getrennt', lock:'Verriegelt' };
+    const stateLabel = isOn ? (openStates[dc]  || 'An') : (closeStates[dc] || 'Aus');
+    const stateColor = isOn ? '#f44336' : 'rgba(255,255,255,0.45)';
+    return `<div class="popup-row" data-bs-row="${entityId}">${IC(icon, stateColor)}
+      <span class="popup-label">${label}</span>
+      <span class="popup-state-val">${stateLabel}</span>
     </div>`;
   }
 
@@ -552,6 +565,20 @@ class RoomOverviewCard extends HTMLElement {
         const t = st.attributes.media_title || '';
         const a = st.attributes.media_artist || '';
         mediaInfo.textContent = t ? (a ? `${a} – ${t}` : t) : '';
+      }
+
+      const bsRow = this._popupEl.querySelector(`[data-bs-row="${entityId}"]`);
+      if (bsRow) {
+        const dc = st.attributes.device_class || '';
+        const openStates  = { door:'Offen', window:'Offen', garage_door:'Offen', gate:'Offen', opening:'Offen', contact:'Offen', motion:'Erkannt', smoke:'Erkannt', gas:'Erkannt', moisture:'Nass', presence:'Anwesend', occupancy:'Belegt', plug:'Verbunden', lock:'Offen' };
+        const closeStates = { door:'Zu',    window:'Zu',    garage_door:'Zu',    gate:'Zu',    opening:'Zu',    contact:'Zu',    motion:'Frei',    smoke:'Frei',    gas:'Frei',    moisture:'Trocken', presence:'Abwesend', occupancy:'Frei',    plug:'Getrennt', lock:'Verriegelt' };
+        const isOpen = st.state === 'on';
+        const stateLabel = isOpen ? (openStates[dc] || 'An') : (closeStates[dc] || 'Aus');
+        const stateColor = isOpen ? '#f44336' : 'rgba(255,255,255,0.45)';
+        const stateSpan = bsRow.querySelector('.popup-state-val');
+        if (stateSpan) stateSpan.textContent = stateLabel;
+        const iconEl = bsRow.querySelector('ha-icon');
+        if (iconEl) iconEl.style.color = stateColor;
       }
     });
   }
