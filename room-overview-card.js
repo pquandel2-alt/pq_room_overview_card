@@ -1,3 +1,4 @@
+// @ts-check
 // =====================================================================
 //  Room Overview Card v1.0.7
 // =====================================================================
@@ -320,11 +321,13 @@ class RoomOverviewCard extends HTMLElement {
     this._popupOpen = false;
   }
 
+  /** @param {LovelaceCardConfig} config */
   setConfig(config) {
     if (!config) throw new Error('Keine Konfiguration angegeben');
     this._config = { border_radius: 16, sections: [], ...config };
   }
 
+  /** @param {HomeAssistant} hass */
   set hass(hass) {
     this._hass = hass;
     if (this._popupOpen) {
@@ -530,10 +533,10 @@ class RoomOverviewCard extends HTMLElement {
       if (!st) return;
       const domain = entityId.split('.')[0];
 
-      const cb = this._popupEl.querySelector(`[data-entity="${entityId}"][data-control="toggle"]`);
+      const cb = /** @type {HTMLInputElement|null} */ (this._popupEl.querySelector(`[data-entity="${entityId}"][data-control="toggle"]`));
       if (cb) cb.checked = (domain === 'lock') ? st.state === 'locked' : st.state === 'on';
 
-      const slider = this._popupEl.querySelector(`[data-entity="${entityId}"][data-control="slider"]`);
+      const slider = /** @type {HTMLInputElement & HTMLElement|null} */ (this._popupEl.querySelector(`[data-entity="${entityId}"][data-control="slider"]`));
       if (slider) {
         const t = slider.dataset.type;
         let val;
@@ -554,7 +557,7 @@ class RoomOverviewCard extends HTMLElement {
         else { const u = st.attributes.unit_of_measurement || unit; valEl.textContent = `${parseFloat(st.state)}${u ? ' '+u : ''}`; }
       }
 
-      const sel = this._popupEl.querySelector(`[data-entity="${entityId}"][data-control="select"]`);
+      const sel = /** @type {HTMLInputElement|null} */ (this._popupEl.querySelector(`[data-entity="${entityId}"][data-control="select"]`));
       if (sel) sel.value = st.state;
 
       const timerEl = this._popupEl.querySelector(`[data-timer="${entityId}"]`);
@@ -577,7 +580,7 @@ class RoomOverviewCard extends HTMLElement {
         const stateColor = isOpen ? '#f44336' : 'rgba(255,255,255,0.45)';
         const stateSpan = bsRow.querySelector('.popup-state-val');
         if (stateSpan) stateSpan.textContent = stateLabel;
-        const iconEl = bsRow.querySelector('ha-icon');
+        const iconEl = /** @type {HTMLElement|null} */ (bsRow.querySelector('ha-icon'));
         if (iconEl) iconEl.style.color = stateColor;
       }
     });
@@ -668,12 +671,12 @@ class RoomOverviewCard extends HTMLElement {
     // Toggle
     this._popupEl.querySelectorAll('[data-control="toggle"]').forEach(cb => {
       cb.addEventListener('change', e => {
-        const entityId = e.target.dataset.entity;
+        const entityId = (/** @type {HTMLElement} */ (e.target)).dataset.entity;
         const domain = entityId.split('.')[0];
         if (domain === 'lock') {
-          this._hass.callService('lock', e.target.checked ? 'lock' : 'unlock', { entity_id: entityId });
+          this._hass.callService('lock', (/** @type {HTMLInputElement} */ (e.target)).checked ? 'lock' : 'unlock', { entity_id: entityId });
         } else {
-          this._hass.callService('homeassistant', e.target.checked ? 'turn_on' : 'turn_off', { entity_id: entityId });
+          this._hass.callService('homeassistant', (/** @type {HTMLInputElement} */ (e.target)).checked ? 'turn_on' : 'turn_off', { entity_id: entityId });
         }
       });
     });
@@ -681,15 +684,15 @@ class RoomOverviewCard extends HTMLElement {
     // Slider
     this._popupEl.querySelectorAll('[data-control="slider"]').forEach(slider => {
       slider.addEventListener('input', e => {
-        const valEl = this._popupEl.querySelector(`[data-val="${e.target.dataset.entity}"]`);
-        const unit = e.target.dataset.unit || '';
-        if (valEl) valEl.textContent = `${e.target.value}${unit ? ' '+unit : ''}`;
+        const valEl = this._popupEl.querySelector(`[data-val="${(/** @type {HTMLElement} */ (e.target)).dataset.entity}"]`);
+        const unit = (/** @type {HTMLElement} */ (e.target)).dataset.unit || '';
+        if (valEl) valEl.textContent = `${(/** @type {HTMLInputElement} */ (e.target)).value}${unit ? ' '+unit : ''}`;
       });
       slider.addEventListener('change', e => {
-        const entityId = e.target.dataset.entity;
+        const entityId = (/** @type {HTMLElement} */ (e.target)).dataset.entity;
         const domain = entityId.split('.')[0];
-        const t = e.target.dataset.type;
-        const val = parseFloat(e.target.value);
+        const t = (/** @type {HTMLElement} */ (e.target)).dataset.type;
+        const val = parseFloat((/** @type {HTMLInputElement} */ (e.target)).value);
         if (t === 'climate-temp') this._hass.callService('climate', 'set_temperature', { entity_id: entityId, temperature: val });
         else if (t === 'volume')  this._hass.callService('media_player', 'volume_set', { entity_id: entityId, volume_level: val/100 });
         else if (t === 'fan-pct') this._hass.callService('fan', 'set_percentage', { entity_id: entityId, percentage: val });
@@ -701,19 +704,19 @@ class RoomOverviewCard extends HTMLElement {
     // Select
     this._popupEl.querySelectorAll('[data-control="select"]').forEach(sel => {
       sel.addEventListener('change', e => {
-        const entityId = e.target.dataset.entity;
+        const entityId = (/** @type {HTMLElement} */ (e.target)).dataset.entity;
         const domain = entityId.split('.')[0];
-        if (domain === 'input_select') this._hass.callService('input_select', 'select_option', { entity_id: entityId, option: e.target.value });
-        else if (domain === 'climate') this._hass.callService('climate', 'set_hvac_mode', { entity_id: entityId, hvac_mode: e.target.value });
-        else this._hass.callService('select', 'select_option', { entity_id: entityId, option: e.target.value });
+        if (domain === 'input_select') this._hass.callService('input_select', 'select_option', { entity_id: entityId, option: (/** @type {HTMLInputElement} */ (e.target)).value });
+        else if (domain === 'climate') this._hass.callService('climate', 'set_hvac_mode', { entity_id: entityId, hvac_mode: (/** @type {HTMLInputElement} */ (e.target)).value });
+        else this._hass.callService('select', 'select_option', { entity_id: entityId, option: (/** @type {HTMLInputElement} */ (e.target)).value });
       });
     });
 
     // Cover
     this._popupEl.querySelectorAll('[data-control^="cover-"]').forEach(btn => {
       btn.addEventListener('click', e => {
-        const entityId = e.currentTarget.dataset.entity;
-        const ctrl = e.currentTarget.dataset.control;
+        const entityId = (/** @type {HTMLElement} */ (e.currentTarget)).dataset.entity;
+        const ctrl = (/** @type {HTMLElement} */ (e.currentTarget)).dataset.control;
         const svc = ctrl==='cover-open'?'open_cover':ctrl==='cover-close'?'close_cover':'stop_cover';
         this._hass.callService('cover', svc, { entity_id: entityId });
       });
@@ -722,7 +725,7 @@ class RoomOverviewCard extends HTMLElement {
     // Press (button/scene/script)
     this._popupEl.querySelectorAll('[data-control="press"]').forEach(btn => {
       btn.addEventListener('click', e => {
-        const entityId = e.currentTarget.dataset.entity;
+        const entityId = (/** @type {HTMLElement} */ (e.currentTarget)).dataset.entity;
         const domain = entityId.split('.')[0];
         const svcMap = { button:'press', input_button:'press', scene:'turn_on', script:'turn_on' };
         this._hass.callService(domain, svcMap[domain] || 'turn_on', { entity_id: entityId });
@@ -732,7 +735,7 @@ class RoomOverviewCard extends HTMLElement {
     // Media play/pause
     this._popupEl.querySelectorAll('[data-control="media-play"]').forEach(btn => {
       btn.addEventListener('click', e => {
-        const entityId = e.currentTarget.dataset.entity;
+        const entityId = (/** @type {HTMLElement} */ (e.currentTarget)).dataset.entity;
         const svc = this._hass.states[entityId]?.state === 'playing' ? 'media_pause' : 'media_play';
         this._hass.callService('media_player', svc, { entity_id: entityId });
       });
@@ -741,8 +744,8 @@ class RoomOverviewCard extends HTMLElement {
     // Vacuum
     this._popupEl.querySelectorAll('[data-control^="vacuum-"]').forEach(btn => {
       btn.addEventListener('click', e => {
-        const entityId = e.currentTarget.dataset.entity;
-        const svc = {'vacuum-start':'start','vacuum-pause':'pause','vacuum-dock':'return_to_base'}[e.currentTarget.dataset.control];
+        const entityId = (/** @type {HTMLElement} */ (e.currentTarget)).dataset.entity;
+        const svc = {'vacuum-start':'start','vacuum-pause':'pause','vacuum-dock':'return_to_base'}[(/** @type {HTMLElement} */ (e.currentTarget)).dataset.control];
         if (svc) this._hass.callService('vacuum', svc, { entity_id: entityId });
       });
     });
@@ -750,29 +753,28 @@ class RoomOverviewCard extends HTMLElement {
     // Timer
     this._popupEl.querySelectorAll('[data-control^="timer-"]').forEach(btn => {
       btn.addEventListener('click', e => {
-        const entityId = e.currentTarget.dataset.entity;
-        const svc = {'timer-start':'start','timer-pause':'pause','timer-cancel':'cancel'}[e.currentTarget.dataset.control];
+        const entityId = (/** @type {HTMLElement} */ (e.currentTarget)).dataset.entity;
+        const svc = {'timer-start':'start','timer-pause':'pause','timer-cancel':'cancel'}[(/** @type {HTMLElement} */ (e.currentTarget)).dataset.control];
         if (svc) this._hass.callService('timer', svc, { entity_id: entityId });
       });
     });
 
     // Automation trigger
     this._popupEl.querySelectorAll('[data-control="automation-trigger"]').forEach(btn => {
-      btn.addEventListener('click', e => this._hass.callService('automation', 'trigger', { entity_id: e.currentTarget.dataset.entity }));
+      btn.addEventListener('click', e => this._hass.callService('automation', 'trigger', { entity_id: (/** @type {HTMLElement} */ (e.currentTarget)).dataset.entity }));
     });
 
     // Input text
     this._popupEl.querySelectorAll('[data-control="text"]').forEach(inp => {
-      const save = e => this._hass.callService('input_text', 'set_value', { entity_id: e.target.dataset.entity, value: e.target.value });
+      const save = e => this._hass.callService('input_text', 'set_value', { entity_id: (/** @type {HTMLElement} */ (e.target)).dataset.entity, value: (/** @type {HTMLInputElement} */ (e.target)).value });
       inp.addEventListener('change', save);
-      inp.addEventListener('keydown', e => { if (e.key === 'Enter') save(e); });
+      inp.addEventListener('keydown', e => { if ((/** @type {KeyboardEvent} */ (e)).key === 'Enter') save(e); });
     });
 
     // More-info
     this._popupEl.querySelectorAll('[data-control="more-info"]').forEach(btn => {
       btn.addEventListener('click', e => {
-        const ev = new Event('hass-more-info', { bubbles: true, composed: true });
-        ev.detail = { entityId: e.currentTarget.dataset.entity };
+        const ev = new CustomEvent('hass-more-info', { bubbles: true, composed: true, detail: { entityId: (/** @type {HTMLElement} */ (e.currentTarget)).dataset.entity } });
         this.dispatchEvent(ev);
       });
     });
@@ -801,8 +803,10 @@ class RoomOverviewCardEditor extends HTMLElement {
     this._rendered = false;
   }
 
+  /** @param {LovelaceCardConfig} config */
   setConfig(config) { this._config = { ...config }; this._render(); }
 
+  /** @param {HomeAssistant} hass */
   set hass(hass) {
     this._hass = hass;
     if (!this._rendered) this._render();
@@ -822,13 +826,13 @@ class RoomOverviewCardEditor extends HTMLElement {
   // ── Entity Picker ──────────────────────────────────────────────────
   _buildEntityPicker(container, currentValue, onChange) {
     container.innerHTML = '';
-    const picker = document.createElement('ha-entity-picker');
+    const picker = /** @type {HaEntityPicker} */ (document.createElement('ha-entity-picker'));
     picker.hass = this._hass;
     picker.value = currentValue || '';
     picker.setAttribute('allow-custom-entity', '');
     picker.style.cssText = 'display:block;width:100%;';
     picker.addEventListener('value-changed', e => {
-      if (e.detail.value !== undefined) onChange(e.detail.value);
+      if ((/** @type {CustomEvent} */ (e)).detail.value !== undefined) onChange((/** @type {CustomEvent} */ (e)).detail.value);
     });
     container.appendChild(picker);
   }
@@ -838,14 +842,14 @@ class RoomOverviewCardEditor extends HTMLElement {
     container.innerHTML = '';
     const isReal = customElements.get('ha-icon-picker') !== undefined;
     if (isReal) {
-      const ip = document.createElement('ha-icon-picker');
+      const ip = /** @type {HaIconPicker} */ (document.createElement('ha-icon-picker'));
       ip.value = currentValue;
-      ip.addEventListener('value-changed', e => onChange(e.detail.value));
+      ip.addEventListener('value-changed', e => onChange((/** @type {CustomEvent} */ (e)).detail.value));
       container.appendChild(ip);
     } else {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:8px;';
-      const preview = document.createElement('ha-icon');
+      const preview = /** @type {HaIconElement} */ (document.createElement('ha-icon'));
       preview.icon = currentValue || 'mdi:help-circle';
       preview.style.cssText = '--mdc-icon-size:26px;color:var(--secondary-text-color,#727272);flex-shrink:0;';
       const inp = document.createElement('input');
@@ -853,8 +857,8 @@ class RoomOverviewCardEditor extends HTMLElement {
       inp.value = currentValue || '';
       inp.placeholder = 'mdi:sofa';
       inp.style.cssText = 'flex:1;padding:9px 11px;border-radius:8px;border:1px solid var(--divider-color,#e0e0e0);background:var(--card-background-color,#fff);color:var(--primary-text-color,#212121);font-size:14px;outline:none;';
-      inp.addEventListener('input', e => { preview.icon = e.target.value || 'mdi:help-circle'; });
-      inp.addEventListener('change', e => onChange(e.target.value));
+      inp.addEventListener('input', e => { preview.icon = (/** @type {HTMLInputElement} */ (e.target)).value || 'mdi:help-circle'; });
+      inp.addEventListener('change', e => onChange((/** @type {HTMLInputElement} */ (e.target)).value));
       const hint = document.createElement('div');
       hint.style.cssText = 'font-size:11px;color:var(--secondary-text-color,#727272);margin-top:4px;';
       hint.textContent = 'Alle Icons: materialdesignicons.com';
@@ -971,7 +975,7 @@ class RoomOverviewCardEditor extends HTMLElement {
       titleInput.style.cssText = 'flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--divider-color,#e0e0e0);background:var(--card-background-color,#fff);color:var(--primary-text-color,#212121);font-size:13px;font-weight:600;outline:none;';
       titleInput.addEventListener('change', e => {
         const arr = this._deepCloneSections();
-        arr[sIdx].title = e.target.value;
+        arr[sIdx].title = (/** @type {HTMLInputElement} */ (e.target)).value;
         this._config = { ...this._config, sections: arr };
         this._emit();
       });
@@ -1156,7 +1160,7 @@ class RoomOverviewCardEditor extends HTMLElement {
 
     const on = (id, key, fn = v => v) => {
       const el = root.getElementById(id);
-      if (el) el.addEventListener('change', e => this._update(key, fn(e.target.value)));
+      if (el) el.addEventListener('change', e => this._update(key, fn((/** @type {HTMLInputElement} */ (e.target)).value)));
     };
     on('name', 'name');
     on('border_radius', 'border_radius', v => parseInt(v));
